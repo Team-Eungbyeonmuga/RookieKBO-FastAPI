@@ -19,11 +19,16 @@ T = TypeVar('T')
 def root():
     return {"message": "Hello World"}
 
+class GetMatchDetailRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    day: int = Field(ge=1, le=31)
+
+
 # <Good : post_data 동적 설정 및 할당, 데이터 가져오기>
 # 특정 날짜 데이터 가져오기
-
-@app.get("/match-detail")
-def getMatchDetail():
+@app.post("/match-detail")
+def getMatchDetail(request: GetMatchDetailRequest):
     # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
@@ -61,7 +66,10 @@ def getMatchDetail():
         'Content-Type': 'application/x-www-form-urlencoded'
     }
 
-    searchDate = '20241006'
+    year = str(request.year)
+    month = str(request.month)
+    day = str(request.day).zfill(2)
+    searchDate = year + month + day
 
     # 네트워크 탭에서 확인한 POST 데이터
     post_data = {
@@ -83,7 +91,8 @@ def getMatchDetail():
     # 모든 경기를 포함하는 div를 찾아냄
     games = soup.find_all('div', class_='smsScore')
 
-    print(games)
+    # log
+    # print(games)
 
     all_game_scores = []
 
@@ -108,23 +117,31 @@ def getMatchDetail():
             "awayTotalScore": 0,  # 전체 점수 추가
             "homeTotalScore": 0,  # 전체 점수 추가
             "awayRHEB": [],
-            "homeRHEB": []
+            "homeRHEB": [],
+            "kindOfMatch": ""
         }
 
         # 각 팀의 이름과 이닝별 점수, R, H, E, B 값을 추출
         for row in rows:
             team_name = row.find('th').text
+            # 'class' 속성이 없는 <td> 태그 찾기 (class="point"와 class="hit" 제외)
+            tds_without_class = row.find_all('td', class_=False)
+
+            # 해당 <td> 태그의 개수
+            MaxNumberOfInnings = len(tds_without_class)
+            print(MaxNumberOfInnings)
+            if MaxNumberOfInnings == 12:
+                game_data['kindOfMatch'] = "정규시즌"
+            elif MaxNumberOfInnings == 15:
+                game_data['kindOfMatch'] = "포스트시즌"
+            else:
+                game_data['kindOfMatch'] = '-'
+
             # TODO: 정규시즌은 12, 포스트시즌은 15이닝까지 존재.
-            innings = [td.text for td in row.find_all('td')[:15]]  # 이닝별 점수는 1~12열까지
+            innings = [td.text for td in row.find_all('td')[:MaxNumberOfInnings]]  # 이닝별 점수는 1~12열까지
             # R, H, E, B 값 추출
             rheb = [td.text for td in row.find_all('td')[-4:]]  # 마지막 4열은 R, H, E, B 값
             total_score = row.find('td', class_='point').text.strip()  # 팀의 전체 점수 추출
-            # total_score_tag = row.find('td', class_='point')  # 팀의 전체 점수 추출
-
-            # if total_score_tag:
-            #     total_score = total_score_tag.text.strip()  # 점수가 있으면 추출
-            # else:
-            #     total_score = "-"  # 점수가 없을 경우 0으로 처리
 
             if team_name == left_team:
                 game_data['awayTeamScores'] = innings
@@ -139,6 +156,7 @@ def getMatchDetail():
 
     # 콘솔 출력
     for game in all_game_scores:
+        print(f"경기 종류 {game['kindOfMatch']}")
         print(f"경기 상태: {game['gameStatus']}")
         print(f"경기: {game['awayTeam']} {game['awayTotalScore']} vs {game['homeTeam']} {game['homeTotalScore']}")
         print(f"  원정 팀 점수: {game['awayTeamScores']}")
@@ -153,8 +171,13 @@ def getMatchDetail():
 # --------------------------------------
 
 
-@app.get("/matches")
-def getMatches():
+class GetMatchesRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    kindOfMatch: str
+    
+@app.post("/matches")
+def getMatches(request: GetMatchesRequest):
     # # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
@@ -170,15 +193,26 @@ def getMatches():
     url = 'https://www.koreabaseball.com/Schedule/Schedule.aspx'
     driver.get(url)
 
+    year = str(request.year)
+    month = str(request.month).zfill(2)
+    kindOfMatch = ""
+    
+    if request.kindOfMatch == "정규시즌":
+        kindOfMatch = "0,9,6"
+    elif request.kindOfMatch == "포스트시즌":
+        kindOfMatch = "3,4,5,7"
+    else:
+        kindOfMatch = "1"
+
     # 년도와 월, 시즌 선택
     select_year = Select(driver.find_element("id", "ddlYear"))
-    select_year.select_by_value("2024")  # 2024년 선택
+    select_year.select_by_value(year)  # 2024년 선택
 
     select_month = Select(driver.find_element("id", "ddlMonth"))
-    select_month.select_by_value("10")  # 10월 선택
+    select_month.select_by_value(month)  # 10월 선택
 
     select_series = Select(driver.find_element("id", "ddlSeries"))
-    select_series.select_by_value("3,4,5,7")  # 포스트시즌 선택
+    select_series.select_by_value(kindOfMatch)  # 포스트시즌 선택
     # 포스트 시즌 : "3,4,5,7"
     # 정규시즌: "0,9,6"
 
