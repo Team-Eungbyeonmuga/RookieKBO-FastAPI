@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import Generic, TypeVar, Optional
 from datetime import datetime
 import json
+from typing import List
 
 app = FastAPI()
 T = TypeVar('T')
@@ -170,11 +171,23 @@ def getMatchDetail(request: GetMatchDetailRequest):
 
 # --------------------------------------
 
+class MatchInfo(BaseModel):
+    day: str
+    time: str
+    awayTeam: str
+    homeTeam: str
+    awayScore: Optional[str] = None  # Optional[str]로 변경
+    homeScore: Optional[str] = None  # Optional[str]로 변경
+    place: str
+    note: str
+
+class GetMatchesResponse(BaseModel):
+    matchInfos: List[MatchInfo]
 
 class GetMatchesRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
-    kindOfMatch: str
+    matchType: str
     
 @app.post("/matches")
 def getMatches(request: GetMatchesRequest):
@@ -195,14 +208,14 @@ def getMatches(request: GetMatchesRequest):
 
     year = str(request.year)
     month = str(request.month).zfill(2)
-    kindOfMatch = ""
-    
-    if request.kindOfMatch == "정규시즌":
-        kindOfMatch = "0,9,6"
-    elif request.kindOfMatch == "포스트시즌":
-        kindOfMatch = "3,4,5,7"
+    matchType = ""
+
+    if request.matchType == "정규시즌":
+        matchType = "0,9,6"
+    elif request.matchType == "포스트시즌":
+        matchType = "3,4,5,7"
     else:
-        kindOfMatch = "1"
+        matchType = "1"
 
     # 년도와 월, 시즌 선택
     select_year = Select(driver.find_element("id", "ddlYear"))
@@ -212,7 +225,7 @@ def getMatches(request: GetMatchesRequest):
     select_month.select_by_value(month)  # 10월 선택
 
     select_series = Select(driver.find_element("id", "ddlSeries"))
-    select_series.select_by_value(kindOfMatch)  # 포스트시즌 선택
+    select_series.select_by_value(matchType)  # 포스트시즌 선택
     # 포스트 시즌 : "3,4,5,7"
     # 정규시즌: "0,9,6"
 
@@ -257,16 +270,17 @@ def getMatches(request: GetMatchesRequest):
             away_team = teams[0].text.strip()
             home_team = teams[-1].text.strip()
 
-            match = {
-                "day": current_day,
-                "time": time_cell.text.strip(),
-                "awayTeam": away_team,
-                "homeTeam": home_team,
-                "awayScore": away_score,
-                "homeScore": home_score,
-                "place": place_cell,
-                "note": note_cell
-            }
+            # MatchInfo 생성
+            match = MatchInfo(
+                day=current_day,
+                time=time_cell.text.strip(),
+                awayTeam=away_team,
+                homeTeam=home_team,
+                awayScore=away_score,
+                homeScore=home_score,
+                place=place_cell,
+                note=note_cell
+            )
             matches.append(match)
 
     print(matches)
@@ -274,4 +288,4 @@ def getMatches(request: GetMatchesRequest):
     # 드라이버 종료
     driver.quit()
 
-    return matches
+    return GetMatchesResponse(matchInfos=matches)
