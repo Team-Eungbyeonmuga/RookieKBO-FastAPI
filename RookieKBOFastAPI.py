@@ -410,3 +410,132 @@ def getMatchesInAllSeason(request: GetMatchSummariesInAllSeasonRequest):
     print(GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason))
 
     return GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason)
+
+# ----------------------------------------------------------------------------------------
+
+class MatchSummaryOnCalendar(BaseModel):
+    dayNum: str
+    homeTeam: str
+    awayTeam: str
+    homeScore: str
+    awayScore: str
+    gameStatus: str
+    season: str
+
+class GetMatchSummariesOnCalendarResponse(BaseModel):
+    matchSummaries: List[MatchSummary]
+
+class GetMatchSummariesOnCalendarRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    season: str
+    
+@app.post("/matches/calendar")
+def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
+        # # ChromeDriver 경로 설정
+    chrome_driver_path = "/opt/homebrew/bin/chromedriver"
+
+    # Chrome 옵션 설정
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # 브라우저 창을 띄우지 않고 실행하려면 추가
+
+    # Selenium 드라이버 시작
+    service = Service(executable_path=chrome_driver_path)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    # URL로 이동
+    url = 'https://www.koreabaseball.com/Schedule/Schedule.aspx'
+    driver.get(url)
+
+    year = str(request.year)
+    month = str(request.month).zfill(2)
+    season = ""
+
+    if request.season == "정규시즌":
+        season = "0,9,6"
+    elif request.season == "포스트시즌":
+        season = "3,4,5,7"
+    else:
+        season = "1"
+
+    # 년도와 월, 시즌 선택
+    select_year = Select(driver.find_element("id", "ddlYear"))
+    select_year.select_by_value(year)  # 2024년 선택
+
+    select_month = Select(driver.find_element("id", "ddlMonth"))
+    select_month.select_by_value(month)  # 10월 선택
+
+    select_series = Select(driver.find_element("id", "ddlSeries"))
+    select_series.select_by_value(season)  # 포스트시즌 선택
+    # 포스트 시즌 : "3,4,5,7"
+    # 정규시즌: "0,9,6"
+
+    # 선택 후 페이지가 로드될 시간을 기다림
+    t.sleep(1)
+
+    # 페이지 HTML 소스 가져오기
+    html = driver.page_source
+
+    # BeautifulSoup을 이용해 파싱
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # 경기 일정을 찾는 코드 (테이블에서 추출)
+    table = soup.find('table', {'id': 'tblScheduleCal'})
+    rows = table.find_all('tr')
+
+    no_data_row = table.find('td', {'colspan': '9', 'style': 'text-align: center;'})
+    if no_data_row and "데이터가 없습니다." in no_data_row.text:
+        # 데이터가 없을 때 빈 리스트 반환
+        return []
+
+    matches = []
+    current_day = None
+
+    for row in rows[1:]:
+
+        day_cells = row.find_all('td', class_='endGame')
+
+
+        for day_cell in day_cells:
+            # 날짜 가져오기
+            day_num = day_cell.find('li', class_='dayNum')
+            if day_num:
+                day_num = day_num.text.strip()
+            print(day_num)
+        
+            # <li> 태그들을 모두 가져오기 (rainCancel 포함)
+            game_infos = day_cell.find_all('li')
+
+            print(game_infos)
+            
+            day_matches = {
+                "date": day_num,
+                "rain_cancelled": [],
+                "completed": []
+            }
+            
+            # 각 경기 정보를 순회하면서 우천취소와 정상 종료 구분
+            for game_info in game_infos:
+                # 우천취소된 경기 처리
+                if 'rainCancel' in game_info.get('class', []):
+                    rain_cancel_info = game_info.text.strip()
+                    day_matches['rain_cancelled'].append(rain_cancel_info)
+                
+                # 정상 경기 처리
+                elif game_info.find('b'):
+                    # 점수 추출
+                    score = game_info.find('b').text
+                    # 점수를 제외한 나머지 텍스트 추출
+                    game_info_text = game_info.text.replace(score, '').strip()
+                    completed_match = f"{game_info_text} 점수: {score}"
+                    day_matches['completed'].append(completed_match)
+            
+            # 경기가 있으면 matches 리스트에 추가
+            if day_matches['rain_cancelled'] or day_matches['completed']:
+                matches.append(day_matches)
+
+
+    # 드라이버 종료
+    driver.quit()
+
+    return matches
