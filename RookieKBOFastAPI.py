@@ -493,7 +493,8 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
 
     for row in rows[1:]:
 
-        day_cells = row.find_all('td', class_='endGame')
+        # 모든 td 요소를 가져옴 (endGame, todayGame 포함)
+        day_cells = row.find_all('td', class_=lambda class_name: class_name in ['endGame', 'todayGame', ''])
 
 
         for day_cell in day_cells:
@@ -521,7 +522,6 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                     if len(teams) == 2:
                         away_team = teams[0].strip()  # 앞의 팀명
                         home_team = teams[1].split("[")[0].strip()  # 뒤의 팀명 (구장 정보 제외)
-                        print(f"우천취소 경기: {away_team} vs {home_team}")
                         matchSummaryOnCalendar = MatchSummaryOnCalendar(
                             date = current_day,
                             homeTeam = home_team,
@@ -539,13 +539,13 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                     # 점수 추출
                     score = game_info.find('b').text
                     scores = score.split(':')
-                    awayScore = scores[0]
-                    homeScore = scores[-1]
+                    awayScore = scores[0].strip()
+                    homeScore = scores[-1].strip()
                     # 점수를 제외한 나머지 텍스트 추출
                     game_info_text = game_info.text.replace(score, '').strip()
                     teams = game_info_text.split()
-                    away_team = teams[0]  # 첫 번째 팀명
-                    home_team = teams[-1]  # 마지막 팀명
+                    away_team = teams[0].strip()  # 첫 번째 팀명
+                    home_team = teams[-1].strip()  # 마지막 팀명
                     matchSummaryOnCalendar = MatchSummaryOnCalendar(
                         date = current_day,
                         homeTeam = home_team,
@@ -554,6 +554,24 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                         awayScore = awayScore,
                         gameStatus = "경기 종료",
                         season = request.season
+                    )
+                    print(matchSummaryOnCalendar)
+                    matchSummariesOnCalendar.append(matchSummaryOnCalendar)
+                                # 추가: 점수나 우천취소 없이 팀 이름만 있는 경우 처리
+                elif len(game_info.text.split(":")) == 2 and "[" in game_info.text:
+                    # 팀명과 경기장 추출
+                    teams_info = game_info.text.strip()
+                    teams = teams_info.split(":")
+                    away_team = teams[0].strip()
+                    home_team = teams[1].split("[")[0].strip()
+                    matchSummaryOnCalendar = MatchSummaryOnCalendar(
+                        date=current_day,
+                        homeTeam=home_team,
+                        awayTeam=away_team,
+                        homeScore="-",
+                        awayScore="-",
+                        gameStatus="경기 예정",
+                        season=request.season
                     )
                     print(matchSummaryOnCalendar)
                     matchSummariesOnCalendar.append(matchSummaryOnCalendar)
