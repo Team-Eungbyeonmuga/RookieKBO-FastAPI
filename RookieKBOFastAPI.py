@@ -407,5 +407,6 @@ def getMatchesInAllSeason(request: GetMatchSummariesInAllSeasonRequest):
     getMatchSummariesInPostSeasonRequest = GetMatchSummariesRequest(year=year, month=month, season="포스트시즌")
 
     matchSummariesInPostSeason = getMatchSummaries(getMatchSummariesInPostSeasonRequest)
+    print(GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason))
 
     return GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason)
