@@ -304,7 +304,7 @@ def getMatchSummaries(request: GetMatchSummariesRequest):
 
         if play_cell and time_cell:
             teams = play_cell.find_all('span')
-            scores = play_cell.find_all('span', class_=['win', 'lose'])
+            scores = play_cell.find_all('span', class_=['win', 'lose', 'same'])
 
             if len(scores) == 2:  # win과 lose가 모두 있을 때만 처리
                 away_score = scores[0].text.strip()
