@@ -172,7 +172,7 @@ def getMatchDetail(request: GetMatchDetailRequest):
 # --------------------------------------
 
 class MatchInfo(BaseModel):
-    day: str
+    date: str
     time: str
     awayTeam: str
     homeTeam: str
@@ -180,6 +180,7 @@ class MatchInfo(BaseModel):
     homeScore: Optional[str] = None  # Optional[str]로 변경
     place: str
     note: str
+    season: str
 
 class GetMatchesResponse(BaseModel):
     matchInfos: List[MatchInfo]
@@ -187,9 +188,9 @@ class GetMatchesResponse(BaseModel):
 class GetMatchesRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
-    matchType: str
+    season: str
     
-@app.post("/matches")
+# @app.post("/matches")
 def getMatches(request: GetMatchesRequest):
     # # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
@@ -208,14 +209,14 @@ def getMatches(request: GetMatchesRequest):
 
     year = str(request.year)
     month = str(request.month).zfill(2)
-    matchType = ""
+    season = ""
 
-    if request.matchType == "정규시즌":
-        matchType = "0,9,6"
-    elif request.matchType == "포스트시즌":
-        matchType = "3,4,5,7"
+    if request.season == "정규시즌":
+        season = "0,9,6"
+    elif request.season == "포스트시즌":
+        season = "3,4,5,7"
     else:
-        matchType = "1"
+        season = "1"
 
     # 년도와 월, 시즌 선택
     select_year = Select(driver.find_element("id", "ddlYear"))
@@ -225,7 +226,7 @@ def getMatches(request: GetMatchesRequest):
     select_month.select_by_value(month)  # 10월 선택
 
     select_series = Select(driver.find_element("id", "ddlSeries"))
-    select_series.select_by_value(matchType)  # 포스트시즌 선택
+    select_series.select_by_value(season)  # 포스트시즌 선택
     # 포스트 시즌 : "3,4,5,7"
     # 정규시즌: "0,9,6"
 
@@ -242,12 +243,16 @@ def getMatches(request: GetMatchesRequest):
     table = soup.find('table', {'id': 'tblScheduleList'})
     rows = table.find_all('tr')
 
-    # print(rows)
+    no_data_row = table.find('td', {'colspan': '9', 'style': 'text-align: center;'})
+    if no_data_row and "데이터가 없습니다." in no_data_row.text:
+        # 데이터가 없을 때 빈 리스트 반환
+        return []
 
     matches = []
     current_day = None
 
     for row in rows[1:]:
+        print(row)
         day_cell = row.find('td', class_='day')
         if day_cell:
             current_day = day_cell.text.strip()
@@ -272,14 +277,15 @@ def getMatches(request: GetMatchesRequest):
 
             # MatchInfo 생성
             match = MatchInfo(
-                day=current_day,
+                date=current_day,
                 time=time_cell.text.strip(),
                 awayTeam=away_team,
                 homeTeam=home_team,
                 awayScore=away_score,
                 homeScore=home_score,
                 place=place_cell,
-                note=note_cell
+                note=note_cell,
+                season=request.season
             )
             matches.append(match)
 
@@ -288,4 +294,77 @@ def getMatches(request: GetMatchesRequest):
     # 드라이버 종료
     driver.quit()
 
-    return GetMatchesResponse(matchInfos=matches)
+    return matches
+
+# -----------------------------------------------------------------------------
+
+class GetMatchesInRegularSeasonResponse(BaseModel):
+    matchInfosInRegularSeason: List[MatchInfo]
+
+class GetMatchesInRegularSeasonRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    
+@app.post("/matches/regular-season")
+def getMatchesInRegularSeason(request: GetMatchesInRegularSeasonRequest):
+
+    year = request.year
+    month = request.month
+    season = "정규시즌"    # 정규 시즌
+
+    getMatchesRequest = GetMatchesRequest(year=year, month=month, season=season)
+
+    matches = getMatches(getMatchesRequest)
+
+    return GetMatchesInRegularSeasonResponse(matchInfosInRegularSeason=matches)
+
+
+
+# -----------------------------------------------------------------------------
+
+class GetMatchesInPostSeasonResponse(BaseModel):
+    matchInfosInPostSeason: List[MatchInfo]
+
+class GetMatchesInPostSeasonRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    
+@app.post("/matches/post-season")
+def getMatchesInPostSeason(request: GetMatchesInPostSeasonRequest):
+
+    year = request.year
+    month = request.month
+    season = "포스트시즌"    # 정규 시즌
+
+    getMatchesRequest = GetMatchesRequest(year=year, month=month, season=season)
+
+    matches = getMatches(getMatchesRequest)
+
+    return GetMatchesInPostSeasonResponse(matchInfosInPostSeason=matches)
+
+# -----------------------------------------------------------------------------
+
+class GetMatchesInPostSeasonResponse(BaseModel):
+    matchInfosInRegularSeason: List[MatchInfo]
+    matchInfosInPostSeason: List[MatchInfo]
+
+class GetMatchesInAllSeasonRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    
+@app.post("/matches/all-season")
+def getMatchesInAllSeason(request: GetMatchesInAllSeasonRequest):
+
+    year = request.year
+    month = request.month
+
+    getMatchesInRegularSeasonRequest = GetMatchesRequest(year=year, month=month, season="정규시즌")
+
+    matchInfosInRegularSeason = getMatches(getMatchesInRegularSeasonRequest)
+
+
+    getMatchesInPostSeasonRequest = GetMatchesRequest(year=year, month=month, season="포스트시즌")
+
+    matchInfosInPostSeason = getMatches(getMatchesInPostSeasonRequest)
+
+    return GetMatchesInPostSeasonResponse(matchInfosInRegularSeason = matchInfosInRegularSeason, matchInfosInPostSeason = matchInfosInPostSeason)
