@@ -16,28 +16,32 @@ from typing import List
 app = FastAPI()
 T = TypeVar('T')
 
-class MatchInfo(BaseModel):
-    date: str
-    time: str
-    awayTeam: str
-    homeTeam: str
-    awayScore: Optional[str] = None  # Optional[str]로 변경
-    homeScore: Optional[str] = None  # Optional[str]로 변경
-    place: str
-    note: str
-    season: str
 
-class GetMatchesResponse(BaseModel):
-    matchInfos: List[MatchInfo]
-
-class GetMatchesRequest(BaseModel):
-    year: int = Field(ge=2001, le=2024)
-    month: int = Field(ge=1, le=12)
-    season: str
 
 @app.get("/")
 def root():
     return {"message": "Hello World"}
+
+
+class MatchDetail(BaseModel):
+    year: int
+    month: int
+    day: int
+    awayTeam: str
+    homeTeam: str
+    gameStatus: str
+    awayTeamScores: Optional[List[str]] = None  # List[str]로 변경
+    homeTeamScores: Optional[List[str]] = None  # List[str]로 변경
+    awayTotalScore: str
+    homeTotalScore: str
+    awayRHEB: Optional[List[str]] = None  # List[str]로 변경
+    homeRHEB: Optional[List[str]] = None  # List[str]로 변경
+    season: str
+    place: str
+    time: str
+
+class GetMatchDetailResponse(BaseModel):
+    matchDetails: List[MatchDetail]
 
 class GetMatchDetailRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
@@ -87,9 +91,11 @@ def getMatchDetail(request: GetMatchDetailRequest):
     }
 
     year = str(request.year)
-    month = str(request.month)
+    month = str(request.month).zfill(2)
     day = str(request.day).zfill(2)
     searchDate = year + month + day
+
+    # print(searchDate)
 
     # 네트워크 탭에서 확인한 POST 데이터
     post_data = {
@@ -108,8 +114,13 @@ def getMatchDetail(request: GetMatchDetailRequest):
 
     soup = BeautifulSoup(html_data, 'html.parser')
 
+
+    # print(soup)
+
+
     # 모든 경기를 포함하는 div를 찾아냄
     games = soup.find_all('div', class_='smsScore')
+
 
     # log
     # print(games)
@@ -118,9 +129,14 @@ def getMatchDetail(request: GetMatchDetailRequest):
 
     # 각 경기에 대해 처리
     for idx, game in enumerate(games):
+        # print(game)
         # 각 경기의 팀 이름을 추출
         left_team = game.find('p', class_='leftTeam').find('strong', class_='teamT').text
         right_team = game.find('p', class_='rightTeam').find('strong', class_='teamT').text
+        placeTime = game.find('p', class_='place').text.split()
+        print(placeTime)
+        place = placeTime[0]
+        time = placeTime[1]
 
         game_status = game.find('strong', class_='flag').text
         
@@ -128,18 +144,23 @@ def getMatchDetail(request: GetMatchDetailRequest):
         table = game.find('table', class_='tScore')
         rows = table.find('tbody').find_all('tr')
 
-        game_data = {
-            "awayTeam": left_team,
-            "homeTeam": right_team,
-            "gameStatus": game_status,
-            "awayTeamScores": [],
-            "homeTeamScores": [],
-            "awayTotalScore": 0,  # 전체 점수 추가
-            "homeTotalScore": 0,  # 전체 점수 추가
-            "awayRHEB": [],
-            "homeRHEB": [],
-            "kindOfMatch": ""
-        }
+        gameData = MatchDetail(
+                year = year,
+                month = month,
+                day = day,
+                awayTeam = left_team,
+                homeTeam = right_team,
+                gameStatus = game_status,
+                awayTeamScores = [],
+                homeTeamScores = [],
+                awayTotalScore = "0",
+                homeTotalScore = "0",
+                awayRHEB = [],
+                homeRHEB = [],
+                season = "",
+                place = place,
+                time = time
+        )
 
         # 각 팀의 이름과 이닝별 점수, R, H, E, B 값을 추출
         for row in rows:
@@ -149,13 +170,13 @@ def getMatchDetail(request: GetMatchDetailRequest):
 
             # 해당 <td> 태그의 개수
             MaxNumberOfInnings = len(tds_without_class)
-            print(MaxNumberOfInnings)
+            # print(MaxNumberOfInnings)
             if MaxNumberOfInnings == 12:
-                game_data['kindOfMatch'] = "정규시즌"
+                gameData.season = "정규시즌"
             elif MaxNumberOfInnings == 15:
-                game_data['kindOfMatch'] = "포스트시즌"
+                gameData.season = "포스트시즌"
             else:
-                game_data['kindOfMatch'] = '-'
+                gameData.season = "-"
 
             # TODO: 정규시즌은 12, 포스트시즌은 15이닝까지 존재.
             innings = [td.text for td in row.find_all('td')[:MaxNumberOfInnings]]  # 이닝별 점수는 1~12열까지
@@ -164,29 +185,29 @@ def getMatchDetail(request: GetMatchDetailRequest):
             total_score = row.find('td', class_='point').text.strip()  # 팀의 전체 점수 추출
 
             if team_name == left_team:
-                game_data['awayTeamScores'] = innings
-                game_data['awayRHEB'] = rheb
-                game_data['awayTotalScore'] = total_score  # 전체 점수 저장
+                gameData.awayTeamScores = innings
+                gameData.awayRHEB = rheb
+                gameData.awayTotalScore = total_score
             elif team_name == right_team:
-                game_data['homeTeamScores'] = innings
-                game_data['homeRHEB'] = rheb
-                game_data['homeTotalScore'] = total_score  # 전체 점수 저장
+                gameData.homeTeamScores = innings
+                gameData.homeRHEB = rheb
+                gameData.homeTotalScore = total_score
 
-        all_game_scores.append(game_data)
+        all_game_scores.append(gameData)
 
     # 콘솔 출력
-    for game in all_game_scores:
-        print(f"경기 종류 {game['kindOfMatch']}")
-        print(f"경기 상태: {game['gameStatus']}")
-        print(f"경기: {game['awayTeam']} {game['awayTotalScore']} vs {game['homeTeam']} {game['homeTotalScore']}")
-        print(f"  원정 팀 점수: {game['awayTeamScores']}")
-        print(f"  홈 팀 점수: {game['homeTeamScores']}")
-        print(f"  원정 팀 RHEB: {game['awayRHEB']}")
-        print(f"  홈 팀 RHEB: {game['homeRHEB']}")
-        print("-" * 30)
+    # for game in all_game_scores:
+    #     print(f"경기 종류 {game['season']}")
+    #     print(f"경기 상태: {game['gameStatus']}")
+    #     print(f"경기: {game['awayTeam']} {game['awayTotalScore']} vs {game['homeTeam']} {game['homeTotalScore']}")
+    #     print(f"  원정 팀 점수: {game['awayTeamScores']}")
+    #     print(f"  홈 팀 점수: {game['homeTeamScores']}")
+    #     print(f"  원정 팀 RHEB: {game['awayRHEB']}")
+    #     print(f"  홈 팀 RHEB: {game['homeRHEB']}")
+    #     print("-" * 30)
 
     # JSON 형식으로 응답
-    return all_game_scores
+    return GetMatchDetailResponse(matchDetails = all_game_scores)
 
 # --------------------------------------
 
@@ -271,7 +292,7 @@ def getMatchSummaries(request: GetMatchSummariesRequest):
     current_day = None
 
     for row in rows[1:]:
-        print(row)
+        # print(row)
         day_cell = row.find('td', class_='day')
         if day_cell:
             current_day = day_cell.text.strip()
@@ -308,7 +329,7 @@ def getMatchSummaries(request: GetMatchSummariesRequest):
             )
             matches.append(match)
 
-    print(matches)
+    # print(matches)
 
     # 드라이버 종료
     driver.quit()
