@@ -430,7 +430,7 @@ class GetMatchSummariesOnCalendarRequest(BaseModel):
     month: int = Field(ge=1, le=12)
     season: str
     
-@app.post("/matches/calendar")
+# @app.post("/matches/calendar")
 def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
         # # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
@@ -580,4 +580,32 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
     # 드라이버 종료
     driver.quit()
 
-    return GetMatchSummariesOnCalendarResponse(matchSummariesOnCalendar = matchSummariesOnCalendar)
+    return matchSummariesOnCalendar
+
+# ---------------------------------------------------------------------------------
+
+class GetMatchSummariesOnCalendarInAllSeasonResponse(BaseModel):
+    matchSummariesOnCalendarInRegularSeason: List[MatchSummaryOnCalendar]
+    matchSummariesOnCalendarInPostSeason: List[MatchSummaryOnCalendar]
+
+class GetMatchSummariesOnCalendarInAllSeasonRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    
+@app.post("/matches/calendar/all-season")
+def getMatchSummariesOnCalendarInAllSeason(request: GetMatchSummariesOnCalendarInAllSeasonRequest):
+
+    year = request.year
+    month = request.month
+
+    getMatchSummariesInRegularSeasonRequest = GetMatchSummariesOnCalendarRequest(year=year, month=month, season="정규시즌")
+
+    matchSummariesOnCalendarInRegularSeason = getMatchSummariesOnCalendar(getMatchSummariesInRegularSeasonRequest)
+
+
+    getMatchSummariesOnCalendarInPostSeasonRequest = GetMatchSummariesOnCalendarRequest(year=year, month=month, season="포스트시즌")
+
+    matchSummariesOnCalendarInPostSeason = getMatchSummariesOnCalendar(getMatchSummariesOnCalendarInPostSeasonRequest)
+    print(GetMatchSummariesOnCalendarInAllSeasonResponse(matchSummariesOnCalendarInRegularSeason = matchSummariesOnCalendarInRegularSeason, matchSummariesOnCalendarInPostSeason = matchSummariesOnCalendarInPostSeason))
+
+    return GetMatchSummariesOnCalendarInAllSeasonResponse(matchSummariesOnCalendarInRegularSeason = matchSummariesOnCalendarInRegularSeason, matchSummariesOnCalendarInPostSeason = matchSummariesOnCalendarInPostSeason)
