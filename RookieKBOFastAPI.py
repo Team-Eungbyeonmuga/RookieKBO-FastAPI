@@ -16,6 +16,25 @@ from typing import List
 app = FastAPI()
 T = TypeVar('T')
 
+class MatchInfo(BaseModel):
+    date: str
+    time: str
+    awayTeam: str
+    homeTeam: str
+    awayScore: Optional[str] = None  # Optional[str]로 변경
+    homeScore: Optional[str] = None  # Optional[str]로 변경
+    place: str
+    note: str
+    season: str
+
+class GetMatchesResponse(BaseModel):
+    matchInfos: List[MatchInfo]
+
+class GetMatchesRequest(BaseModel):
+    year: int = Field(ge=2001, le=2024)
+    month: int = Field(ge=1, le=12)
+    season: str
+
 @app.get("/")
 def root():
     return {"message": "Hello World"}
@@ -171,7 +190,7 @@ def getMatchDetail(request: GetMatchDetailRequest):
 
 # --------------------------------------
 
-class MatchInfo(BaseModel):
+class MatchSummary(BaseModel):
     date: str
     time: str
     awayTeam: str
@@ -182,16 +201,16 @@ class MatchInfo(BaseModel):
     note: str
     season: str
 
-class GetMatchesResponse(BaseModel):
-    matchInfos: List[MatchInfo]
+class GetMatchSummariesResponse(BaseModel):
+    matchSummaries: List[MatchSummary]
 
-class GetMatchesRequest(BaseModel):
+class GetMatchSummariesRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     season: str
     
 # @app.post("/matches")
-def getMatches(request: GetMatchesRequest):
+def getMatchSummaries(request: GetMatchSummariesRequest):
     # # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
@@ -276,7 +295,7 @@ def getMatches(request: GetMatchesRequest):
             home_team = teams[-1].text.strip()
 
             # MatchInfo 생성
-            match = MatchInfo(
+            match = MatchSummary(
                 date=current_day,
                 time=time_cell.text.strip(),
                 awayTeam=away_team,
@@ -298,73 +317,74 @@ def getMatches(request: GetMatchesRequest):
 
 # -----------------------------------------------------------------------------
 
-class GetMatchesInRegularSeasonResponse(BaseModel):
-    matchInfosInRegularSeason: List[MatchInfo]
+class GetMatchSummariesInRegularSeasonResponse(BaseModel):
+    matchSummariesInRegularSeason: List[MatchSummary]
 
-class GetMatchesInRegularSeasonRequest(BaseModel):
+class GetMatchSummariesInRegularSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
+    season: str
     
 @app.post("/matches/regular-season")
-def getMatchesInRegularSeason(request: GetMatchesInRegularSeasonRequest):
+def getMatchSummariesInRegularSeason(request: GetMatchSummariesInRegularSeasonRequest):
 
     year = request.year
     month = request.month
     season = "정규시즌"    # 정규 시즌
 
-    getMatchesRequest = GetMatchesRequest(year=year, month=month, season=season)
+    getMatchSummariesRequest = GetMatchSummariesRequest(year=year, month=month, season=season)
 
-    matches = getMatches(getMatchesRequest)
+    matches = getMatchSummaries(getMatchSummariesRequest)
 
-    return GetMatchesInRegularSeasonResponse(matchInfosInRegularSeason=matches)
+    return GetMatchSummariesInRegularSeasonResponse(matchSummariesInRegularSeason=matches)
 
 
 
 # -----------------------------------------------------------------------------
 
-class GetMatchesInPostSeasonResponse(BaseModel):
-    matchInfosInPostSeason: List[MatchInfo]
+class GetMatchSummariestSeasonResponse(BaseModel):
+    matchSummariesInPostSeason: List[MatchSummary]
 
-class GetMatchesInPostSeasonRequest(BaseModel):
+class GetMatchSummariesInPostSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     
 @app.post("/matches/post-season")
-def getMatchesInPostSeason(request: GetMatchesInPostSeasonRequest):
+def getMatchSummariesInPostSeason(request: GetMatchSummariesInPostSeasonRequest):
 
     year = request.year
     month = request.month
     season = "포스트시즌"    # 정규 시즌
 
-    getMatchesRequest = GetMatchesRequest(year=year, month=month, season=season)
+    getMatchesSummariesRequest = GetMatchSummariesRequest(year=year, month=month, season=season)
 
-    matches = getMatches(getMatchesRequest)
+    matches = getMatchSummaries(getMatchesSummariesRequest)
 
-    return GetMatchesInPostSeasonResponse(matchInfosInPostSeason=matches)
+    return GetMatchSummariestSeasonResponse(matchSummariesInPostSeason=matches)
 
 # -----------------------------------------------------------------------------
 
-class GetMatchesInPostSeasonResponse(BaseModel):
-    matchInfosInRegularSeason: List[MatchInfo]
-    matchInfosInPostSeason: List[MatchInfo]
+class GetMatchSummariesAllSeasonResponse(BaseModel):
+    matchSummariesInRegularSeason: List[MatchSummary]
+    matchSummariesInPostSeason: List[MatchSummary]
 
-class GetMatchesInAllSeasonRequest(BaseModel):
+class GetMatchSummariesInAllSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     
 @app.post("/matches/all-season")
-def getMatchesInAllSeason(request: GetMatchesInAllSeasonRequest):
+def getMatchesInAllSeason(request: GetMatchSummariesInAllSeasonRequest):
 
     year = request.year
     month = request.month
 
-    getMatchesInRegularSeasonRequest = GetMatchesRequest(year=year, month=month, season="정규시즌")
+    getMatchSummariesInRegularSeasonRequest = GetMatchSummariesRequest(year=year, month=month, season="정규시즌")
 
-    matchInfosInRegularSeason = getMatches(getMatchesInRegularSeasonRequest)
+    matchSummariesInRegularSeason = getMatchSummaries(getMatchSummariesInRegularSeasonRequest)
 
 
-    getMatchesInPostSeasonRequest = GetMatchesRequest(year=year, month=month, season="포스트시즌")
+    getMatchSummariesInPostSeasonRequest = GetMatchSummariesRequest(year=year, month=month, season="포스트시즌")
 
-    matchInfosInPostSeason = getMatches(getMatchesInPostSeasonRequest)
+    matchSummariesInPostSeason = getMatchSummaries(getMatchSummariesInPostSeasonRequest)
 
-    return GetMatchesInPostSeasonResponse(matchInfosInRegularSeason = matchInfosInRegularSeason, matchInfosInPostSeason = matchInfosInPostSeason)
+    return GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason)
