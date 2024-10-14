@@ -414,7 +414,7 @@ def getMatchesInAllSeason(request: GetMatchSummariesInAllSeasonRequest):
 # ----------------------------------------------------------------------------------------
 
 class MatchSummaryOnCalendar(BaseModel):
-    dayNum: str
+    date: str
     homeTeam: str
     awayTeam: str
     homeScore: str
@@ -423,7 +423,7 @@ class MatchSummaryOnCalendar(BaseModel):
     season: str
 
 class GetMatchSummariesOnCalendarResponse(BaseModel):
-    matchSummaries: List[MatchSummary]
+    matchSummariesOnCalendar: List[MatchSummaryOnCalendar]
 
 class GetMatchSummariesOnCalendarRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
@@ -488,7 +488,7 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
         # 데이터가 없을 때 빈 리스트 반환
         return []
 
-    matches = []
+    matchSummariesOnCalendar = []
     current_day = None
 
     for row in rows[1:]:
@@ -501,41 +501,65 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
             day_num = day_cell.find('li', class_='dayNum')
             if day_num:
                 day_num = day_num.text.strip()
-            print(day_num)
+                day_str = day_num.zfill(2)
+            current_day = year + month + day_str
+            print(current_day)
         
             # <li> 태그들을 모두 가져오기 (rainCancel 포함)
             game_infos = day_cell.find_all('li')
 
-            print(game_infos)
             
-            day_matches = {
-                "date": day_num,
-                "rain_cancelled": [],
-                "completed": []
-            }
             
             # 각 경기 정보를 순회하면서 우천취소와 정상 종료 구분
             for game_info in game_infos:
                 # 우천취소된 경기 처리
                 if 'rainCancel' in game_info.get('class', []):
                     rain_cancel_info = game_info.text.strip()
-                    day_matches['rain_cancelled'].append(rain_cancel_info)
+                    
+                    # ":"로 나눈 후 팀명 추출
+                    teams = rain_cancel_info.split(":")
+                    if len(teams) == 2:
+                        away_team = teams[0].strip()  # 앞의 팀명
+                        home_team = teams[1].split("[")[0].strip()  # 뒤의 팀명 (구장 정보 제외)
+                        print(f"우천취소 경기: {away_team} vs {home_team}")
+                        matchSummaryOnCalendar = MatchSummaryOnCalendar(
+                            date = current_day,
+                            homeTeam = home_team,
+                            awayTeam = away_team,
+                            homeScore = "-",
+                            awayScore = "-",
+                            gameStatus = "경기 취소",
+                            season = request.season
+                        )
+                        print(matchSummaryOnCalendar)
+                        matchSummariesOnCalendar.append(matchSummaryOnCalendar)
                 
                 # 정상 경기 처리
                 elif game_info.find('b'):
                     # 점수 추출
                     score = game_info.find('b').text
+                    scores = score.split(':')
+                    awayScore = scores[0]
+                    homeScore = scores[-1]
                     # 점수를 제외한 나머지 텍스트 추출
                     game_info_text = game_info.text.replace(score, '').strip()
-                    completed_match = f"{game_info_text} 점수: {score}"
-                    day_matches['completed'].append(completed_match)
-            
-            # 경기가 있으면 matches 리스트에 추가
-            if day_matches['rain_cancelled'] or day_matches['completed']:
-                matches.append(day_matches)
+                    teams = game_info_text.split()
+                    away_team = teams[0]  # 첫 번째 팀명
+                    home_team = teams[-1]  # 마지막 팀명
+                    matchSummaryOnCalendar = MatchSummaryOnCalendar(
+                        date = current_day,
+                        homeTeam = home_team,
+                        awayTeam = away_team,
+                        homeScore = homeScore,
+                        awayScore = awayScore,
+                        gameStatus = "경기 종료",
+                        season = request.season
+                    )
+                    print(matchSummaryOnCalendar)
+                    matchSummariesOnCalendar.append(matchSummaryOnCalendar)
 
 
     # 드라이버 종료
     driver.quit()
 
-    return matches
+    return GetMatchSummariesOnCalendarResponse(matchSummariesOnCalendar = matchSummariesOnCalendar)
