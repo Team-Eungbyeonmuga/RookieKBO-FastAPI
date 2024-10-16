@@ -28,12 +28,10 @@ class GameDetail(BaseModel):
     awayTeam: str
     homeTeam: str
     gameStatus: str
-    awayTeamScores: Optional[List[str]] = None  # List[str]로 변경
-    homeTeamScores: Optional[List[str]] = None  # List[str]로 변경
-    awayTotalScore: str
-    homeTotalScore: str
-    awayRHEB: Optional[List[str]] = None  # List[str]로 변경
-    homeRHEB: Optional[List[str]] = None  # List[str]로 변경
+    awayScores: Optional[List[int]] = None  # List[str]로 변경
+    homeScores: Optional[List[int]] = None  # List[str]로 변경
+    awayRHEB: Optional[List[int]] = None  # List[str]로 변경
+    homeRHEB: Optional[List[int]] = None  # List[str]로 변경
     season: str
     place: str
 
@@ -149,10 +147,8 @@ def getGameDetail(request: GetGameDetailRequest):
                 awayTeam = left_team,
                 homeTeam = right_team,
                 gameStatus = game_status,
-                awayTeamScores = [],
-                homeTeamScores = [],
-                awayTotalScore = "0",
-                homeTotalScore = "0",
+                awayScores = [],
+                homeScores = [],
                 awayRHEB = [],
                 homeRHEB = [],
                 season = "",
@@ -176,19 +172,17 @@ def getGameDetail(request: GetGameDetailRequest):
                 gameData.season = "-"
 
             # TODO: 정규시즌은 12, 포스트시즌은 15이닝까지 존재.
-            innings = [td.text for td in row.find_all('td')[:MaxNumberOfInnings]]  # 이닝별 점수는 1~12열까지
+            innings = [int(td.text) for td in row.find_all('td')[:MaxNumberOfInnings] if td.text != "-"]# 이닝별 점수는 1~12열까지
             # R, H, E, B 값 추출
-            rheb = [td.text for td in row.find_all('td')[-4:]]  # 마지막 4열은 R, H, E, B 값
-            total_score = row.find('td', class_='point').text.strip()  # 팀의 전체 점수 추출
+            rheb = [int(td.text) for td in row.find_all('td')[-4:] if td.text != ""]  # 마지막 4열은 R, H, E, B 값
+            # total_score = row.find('td', class_='point').text.strip()  # 팀의 전체 점수 추출
 
             if team_name == left_team:
-                gameData.awayTeamScores = innings
+                gameData.awayScores = innings
                 gameData.awayRHEB = rheb
-                gameData.awayTotalScore = total_score
             elif team_name == right_team:
-                gameData.homeTeamScores = innings
+                gameData.homeScores = innings
                 gameData.homeRHEB = rheb
-                gameData.homeTotalScore = total_score
 
         all_game_scores.append(gameData)
 
