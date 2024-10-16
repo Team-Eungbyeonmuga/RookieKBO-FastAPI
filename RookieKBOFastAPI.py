@@ -23,7 +23,7 @@ def root():
     return {"message": "Hello World"}
 
 
-class MatchDetail(BaseModel):
+class GameDetail(BaseModel):
     year: int
     month: int
     day: int
@@ -40,10 +40,10 @@ class MatchDetail(BaseModel):
     place: str
     time: str
 
-class GetMatchDetailResponse(BaseModel):
-    matchDetails: List[MatchDetail]
+class GetGameDetailResponse(BaseModel):
+    gameDetails: List[GameDetail]
 
-class GetMatchDetailRequest(BaseModel):
+class GetGameDetailRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     day: int = Field(ge=1, le=31)
@@ -51,8 +51,8 @@ class GetMatchDetailRequest(BaseModel):
 
 # <Good : post_data 동적 설정 및 할당, 데이터 가져오기>
 # 특정 날짜 데이터 가져오기
-@app.post("/match-detail")
-def getMatchDetail(request: GetMatchDetailRequest):
+@app.post("/game-detail")
+def getGameDetail(request: GetGameDetailRequest):
     # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
@@ -144,7 +144,7 @@ def getMatchDetail(request: GetMatchDetailRequest):
         table = game.find('table', class_='tScore')
         rows = table.find('tbody').find_all('tr')
 
-        gameData = MatchDetail(
+        gameData = GameDetail(
                 year = year,
                 month = month,
                 day = day,
@@ -207,11 +207,11 @@ def getMatchDetail(request: GetMatchDetailRequest):
     #     print("-" * 30)
 
     # JSON 형식으로 응답
-    return GetMatchDetailResponse(matchDetails = all_game_scores)
+    return GetGameDetailResponse(gameDetails = all_game_scores)
 
 # --------------------------------------
 
-class MatchSummary(BaseModel):
+class GameSummary(BaseModel):
     date: str
     time: str
     awayTeam: str
@@ -222,16 +222,16 @@ class MatchSummary(BaseModel):
     note: str
     season: str
 
-class GetMatchSummariesResponse(BaseModel):
-    matchSummaries: List[MatchSummary]
+class GetGameSummariesResponse(BaseModel):
+    gameSummaries: List[GameSummary]
 
-class GetMatchSummariesRequest(BaseModel):
+class GetGameSummariesRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     season: str
     
-# @app.post("/matches")
-def getMatchSummaries(request: GetMatchSummariesRequest):
+# @app.post("/games")
+def getGameSummaries(request: GetGameSummariesRequest):
     # # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
@@ -288,7 +288,7 @@ def getMatchSummaries(request: GetMatchSummariesRequest):
         # 데이터가 없을 때 빈 리스트 반환
         return []
 
-    matches = []
+    games = []
     current_day = None
 
     for row in rows[1:]:
@@ -315,8 +315,8 @@ def getMatchSummaries(request: GetMatchSummariesRequest):
             away_team = teams[0].text.strip()
             home_team = teams[-1].text.strip()
 
-            # MatchInfo 생성
-            match = MatchSummary(
+            # GameInfo 생성
+            game = GameSummary(
                 date=current_day,
                 time=time_cell.text.strip(),
                 awayTeam=away_team,
@@ -327,93 +327,93 @@ def getMatchSummaries(request: GetMatchSummariesRequest):
                 note=note_cell,
                 season=request.season
             )
-            matches.append(match)
+            games.append(game)
 
-    # print(matches)
+    # print(games)
 
     # 드라이버 종료
     driver.quit()
 
-    return matches
+    return games
 
 # -----------------------------------------------------------------------------
 
-class GetMatchSummariesInRegularSeasonResponse(BaseModel):
-    matchSummariesInRegularSeason: List[MatchSummary]
+class GetGameSummariesInRegularSeasonResponse(BaseModel):
+    gameSummariesInRegularSeason: List[GameSummary]
 
-class GetMatchSummariesInRegularSeasonRequest(BaseModel):
+class GetGameSummariesInRegularSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     season: str
     
-@app.post("/matches/regular-season")
-def getMatchSummariesInRegularSeason(request: GetMatchSummariesInRegularSeasonRequest):
+@app.post("/games/regular-season")
+def getGameSummariesInRegularSeason(request: GetGameSummariesInRegularSeasonRequest):
 
     year = request.year
     month = request.month
     season = "정규시즌"    # 정규 시즌
 
-    getMatchSummariesRequest = GetMatchSummariesRequest(year=year, month=month, season=season)
+    getGameSummariesRequest = GetGameSummariesRequest(year=year, month=month, season=season)
 
-    matches = getMatchSummaries(getMatchSummariesRequest)
+    games = getGameSummaries(getGameSummariesRequest)
 
-    return GetMatchSummariesInRegularSeasonResponse(matchSummariesInRegularSeason=matches)
+    return GetGameSummariesInRegularSeasonResponse(gameSummariesInRegularSeason=games)
 
 
 
 # -----------------------------------------------------------------------------
 
-class GetMatchSummariestSeasonResponse(BaseModel):
-    matchSummariesInPostSeason: List[MatchSummary]
+class GetGameSummariestSeasonResponse(BaseModel):
+    gameSummariesInPostSeason: List[GameSummary]
 
-class GetMatchSummariesInPostSeasonRequest(BaseModel):
+class GetGameSummariesInPostSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     
-@app.post("/matches/post-season")
-def getMatchSummariesInPostSeason(request: GetMatchSummariesInPostSeasonRequest):
+@app.post("/games/post-season")
+def getGameSummariesInPostSeason(request: GetGameSummariesInPostSeasonRequest):
 
     year = request.year
     month = request.month
     season = "포스트시즌"    # 정규 시즌
 
-    getMatchesSummariesRequest = GetMatchSummariesRequest(year=year, month=month, season=season)
+    getGamesSummariesRequest = GetGameSummariesRequest(year=year, month=month, season=season)
 
-    matches = getMatchSummaries(getMatchesSummariesRequest)
+    games = getGameSummaries(getGamesSummariesRequest)
 
-    return GetMatchSummariestSeasonResponse(matchSummariesInPostSeason=matches)
+    return GetGameSummariestSeasonResponse(gameSummariesInPostSeason=games)
 
 # -----------------------------------------------------------------------------
 
-class GetMatchSummariesAllSeasonResponse(BaseModel):
-    matchSummariesInRegularSeason: List[MatchSummary]
-    matchSummariesInPostSeason: List[MatchSummary]
+class GetGameSummariesAllSeasonResponse(BaseModel):
+    gameSummariesInRegularSeason: List[GameSummary]
+    gameSummariesInPostSeason: List[GameSummary]
 
-class GetMatchSummariesInAllSeasonRequest(BaseModel):
+class GetGameSummariesInAllSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     
-@app.post("/matches/all-season")
-def getMatchesInAllSeason(request: GetMatchSummariesInAllSeasonRequest):
+@app.post("/games/all-season")
+def getGamesInAllSeason(request: GetGameSummariesInAllSeasonRequest):
 
     year = request.year
     month = request.month
 
-    getMatchSummariesInRegularSeasonRequest = GetMatchSummariesRequest(year=year, month=month, season="정규시즌")
+    getGameSummariesInRegularSeasonRequest = GetGameSummariesRequest(year=year, month=month, season="정규시즌")
 
-    matchSummariesInRegularSeason = getMatchSummaries(getMatchSummariesInRegularSeasonRequest)
+    gameSummariesInRegularSeason = getGameSummaries(getGameSummariesInRegularSeasonRequest)
 
 
-    getMatchSummariesInPostSeasonRequest = GetMatchSummariesRequest(year=year, month=month, season="포스트시즌")
+    getGameSummariesInPostSeasonRequest = GetGameSummariesRequest(year=year, month=month, season="포스트시즌")
 
-    matchSummariesInPostSeason = getMatchSummaries(getMatchSummariesInPostSeasonRequest)
-    print(GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason))
+    gameSummariesInPostSeason = getGameSummaries(getGameSummariesInPostSeasonRequest)
+    print(GetGameSummariesAllSeasonResponse(gameSummariesInRegularSeason = gameSummariesInRegularSeason, gameSummariesInPostSeason = gameSummariesInPostSeason))
 
-    return GetMatchSummariesAllSeasonResponse(matchSummariesInRegularSeason = matchSummariesInRegularSeason, matchSummariesInPostSeason = matchSummariesInPostSeason)
+    return GetGameSummariesAllSeasonResponse(gameSummariesInRegularSeason = gameSummariesInRegularSeason, gameSummariesInPostSeason = gameSummariesInPostSeason)
 
 # ----------------------------------------------------------------------------------------
 
-class MatchSummaryOnCalendar(BaseModel):
+class GameSummaryOnCalendar(BaseModel):
     date: str
     homeTeam: str
     awayTeam: str
@@ -422,16 +422,16 @@ class MatchSummaryOnCalendar(BaseModel):
     gameStatus: str
     season: str
 
-class GetMatchSummariesOnCalendarResponse(BaseModel):
-    matchSummariesOnCalendar: List[MatchSummaryOnCalendar]
+class GetGameSummariesOnCalendarResponse(BaseModel):
+    gameSummariesOnCalendar: List[GameSummaryOnCalendar]
 
-class GetMatchSummariesOnCalendarRequest(BaseModel):
+class GetGameSummariesOnCalendarRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     season: str
     
-# @app.post("/matches/calendar")
-def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
+# @app.post("/games/calendar")
+def getGameSummariesOnCalendar(request: GetGameSummariesOnCalendarRequest):
         # # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
@@ -488,7 +488,7 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
         # 데이터가 없을 때 빈 리스트 반환
         return []
 
-    matchSummariesOnCalendar = []
+    gameSummariesOnCalendar = []
     current_day = None
 
     for row in rows[1:]:
@@ -522,7 +522,7 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                     if len(teams) == 2:
                         away_team = teams[0].strip()  # 앞의 팀명
                         home_team = teams[1].split("[")[0].strip()  # 뒤의 팀명 (구장 정보 제외)
-                        matchSummaryOnCalendar = MatchSummaryOnCalendar(
+                        gameSummaryOnCalendar = GameSummaryOnCalendar(
                             date = current_day,
                             homeTeam = home_team,
                             awayTeam = away_team,
@@ -531,8 +531,8 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                             gameStatus = "경기 취소",
                             season = request.season
                         )
-                        print(matchSummaryOnCalendar)
-                        matchSummariesOnCalendar.append(matchSummaryOnCalendar)
+                        print(gameSummaryOnCalendar)
+                        gameSummariesOnCalendar.append(gameSummaryOnCalendar)
                 
                 # 정상 경기 처리
                 elif game_info.find('b'):
@@ -546,7 +546,7 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                     teams = game_info_text.split()
                     away_team = teams[0].strip()  # 첫 번째 팀명
                     home_team = teams[-1].strip()  # 마지막 팀명
-                    matchSummaryOnCalendar = MatchSummaryOnCalendar(
+                    gameSummaryOnCalendar = GameSummaryOnCalendar(
                         date = current_day,
                         homeTeam = home_team,
                         awayTeam = away_team,
@@ -555,8 +555,8 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                         gameStatus = "경기 종료",
                         season = request.season
                     )
-                    print(matchSummaryOnCalendar)
-                    matchSummariesOnCalendar.append(matchSummaryOnCalendar)
+                    print(gameSummaryOnCalendar)
+                    gameSummariesOnCalendar.append(gameSummaryOnCalendar)
                                 # 추가: 점수나 우천취소 없이 팀 이름만 있는 경우 처리
                 elif len(game_info.text.split(":")) == 2 and "[" in game_info.text:
                     # 팀명과 경기장 추출
@@ -564,7 +564,7 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                     teams = teams_info.split(":")
                     away_team = teams[0].strip()
                     home_team = teams[1].split("[")[0].strip()
-                    matchSummaryOnCalendar = MatchSummaryOnCalendar(
+                    gameSummaryOnCalendar = GameSummaryOnCalendar(
                         date=current_day,
                         homeTeam=home_team,
                         awayTeam=away_team,
@@ -573,39 +573,39 @@ def getMatchSummariesOnCalendar(request: GetMatchSummariesOnCalendarRequest):
                         gameStatus="경기 예정",
                         season=request.season
                     )
-                    print(matchSummaryOnCalendar)
-                    matchSummariesOnCalendar.append(matchSummaryOnCalendar)
+                    print(gameSummaryOnCalendar)
+                    gameSummariesOnCalendar.append(gameSummaryOnCalendar)
 
 
     # 드라이버 종료
     driver.quit()
 
-    return matchSummariesOnCalendar
+    return gameSummariesOnCalendar
 
 # ---------------------------------------------------------------------------------
 
-class GetMatchSummariesOnCalendarInAllSeasonResponse(BaseModel):
-    matchSummariesOnCalendarInRegularSeason: List[MatchSummaryOnCalendar]
-    matchSummariesOnCalendarInPostSeason: List[MatchSummaryOnCalendar]
+class GetGameSummariesOnCalendarInAllSeasonResponse(BaseModel):
+    gameSummariesOnCalendarInRegularSeason: List[GameSummaryOnCalendar]
+    gameSummariesOnCalendarInPostSeason: List[GameSummaryOnCalendar]
 
-class GetMatchSummariesOnCalendarInAllSeasonRequest(BaseModel):
+class GetGameSummariesOnCalendarInAllSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     
-@app.post("/matches/calendar/all-season")
-def getMatchSummariesOnCalendarInAllSeason(request: GetMatchSummariesOnCalendarInAllSeasonRequest):
+@app.post("/games/calendar/all-season")
+def getGameSummariesOnCalendarInAllSeason(request: GetGameSummariesOnCalendarInAllSeasonRequest):
 
     year = request.year
     month = request.month
 
-    getMatchSummariesInRegularSeasonRequest = GetMatchSummariesOnCalendarRequest(year=year, month=month, season="정규시즌")
+    getGameSummariesInRegularSeasonRequest = GetGameSummariesOnCalendarRequest(year=year, month=month, season="정규시즌")
 
-    matchSummariesOnCalendarInRegularSeason = getMatchSummariesOnCalendar(getMatchSummariesInRegularSeasonRequest)
+    gameSummariesOnCalendarInRegularSeason = getGameSummariesOnCalendar(getGameSummariesInRegularSeasonRequest)
 
 
-    getMatchSummariesOnCalendarInPostSeasonRequest = GetMatchSummariesOnCalendarRequest(year=year, month=month, season="포스트시즌")
+    getGameSummariesOnCalendarInPostSeasonRequest = GetGameSummariesOnCalendarRequest(year=year, month=month, season="포스트시즌")
 
-    matchSummariesOnCalendarInPostSeason = getMatchSummariesOnCalendar(getMatchSummariesOnCalendarInPostSeasonRequest)
-    print(GetMatchSummariesOnCalendarInAllSeasonResponse(matchSummariesOnCalendarInRegularSeason = matchSummariesOnCalendarInRegularSeason, matchSummariesOnCalendarInPostSeason = matchSummariesOnCalendarInPostSeason))
+    gameSummariesOnCalendarInPostSeason = getGameSummariesOnCalendar(getGameSummariesOnCalendarInPostSeasonRequest)
+    print(GetGameSummariesOnCalendarInAllSeasonResponse(gameSummariesOnCalendarInRegularSeason = gameSummariesOnCalendarInRegularSeason, gameSummariesOnCalendarInPostSeason = gameSummariesOnCalendarInPostSeason))
 
-    return GetMatchSummariesOnCalendarInAllSeasonResponse(matchSummariesOnCalendarInRegularSeason = matchSummariesOnCalendarInRegularSeason, matchSummariesOnCalendarInPostSeason = matchSummariesOnCalendarInPostSeason)
+    return GetGameSummariesOnCalendarInAllSeasonResponse(gameSummariesOnCalendarInRegularSeason = gameSummariesOnCalendarInRegularSeason, gameSummariesOnCalendarInPostSeason = gameSummariesOnCalendarInPostSeason)
