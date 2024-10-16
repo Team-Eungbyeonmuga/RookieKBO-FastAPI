@@ -24,9 +24,7 @@ def root():
 
 
 class GameDetail(BaseModel):
-    year: int
-    month: int
-    day: int
+    startDateTime: datetime
     awayTeam: str
     homeTeam: str
     gameStatus: str
@@ -38,7 +36,6 @@ class GameDetail(BaseModel):
     homeRHEB: Optional[List[str]] = None  # List[str]로 변경
     season: str
     place: str
-    time: str
 
 class GetGameDetailResponse(BaseModel):
     gameDetails: List[GameDetail]
@@ -51,7 +48,7 @@ class GetGameDetailRequest(BaseModel):
 
 # <Good : post_data 동적 설정 및 할당, 데이터 가져오기>
 # 특정 날짜 데이터 가져오기
-@app.post("/game-detail")
+@app.post("/games/detail")
 def getGameDetail(request: GetGameDetailRequest):
     # ChromeDriver 경로 설정
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
@@ -136,7 +133,10 @@ def getGameDetail(request: GetGameDetailRequest):
         placeTime = game.find('p', class_='place').text.split()
         print(placeTime)
         place = placeTime[0]
-        time = placeTime[1]
+        time = placeTime[1].split(":")
+        print(time)
+        hour = time[0]
+        minute = time[1]
 
         game_status = game.find('strong', class_='flag').text
         
@@ -145,9 +145,7 @@ def getGameDetail(request: GetGameDetailRequest):
         rows = table.find('tbody').find_all('tr')
 
         gameData = GameDetail(
-                year = year,
-                month = month,
-                day = day,
+                startDateTime = datetime(int(year), int(month), int(day), int(hour), int(minute)),
                 awayTeam = left_team,
                 homeTeam = right_team,
                 gameStatus = game_status,
@@ -158,8 +156,7 @@ def getGameDetail(request: GetGameDetailRequest):
                 awayRHEB = [],
                 homeRHEB = [],
                 season = "",
-                place = place,
-                time = time
+                place = place
         )
 
         # 각 팀의 이름과 이닝별 점수, R, H, E, B 값을 추출
