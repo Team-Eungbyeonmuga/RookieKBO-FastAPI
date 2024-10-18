@@ -1,3 +1,7 @@
+# 실행 명령어
+# Local : uvicorn RookieKBOFastAPI:app --reload
+# Dev : uvicorn RookieKBOFastAPI:app --host 0.0.0.0 --port 8000
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -49,10 +53,15 @@ class GetGameDetailRequest(BaseModel):
 @app.post("/games/detail")
 def getGameDetail(request: GetGameDetailRequest):
     # ChromeDriver 경로 설정
+    # Local : chrome_driver_path = "/opt/homebrew/bin/chromedriver"
+    # Dev : chrome_driver_path = "/usr/bin/chromedriver"
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
     # Chrome 옵션 설정
     chrome_options = Options()
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--single-process")
     chrome_options.add_argument("--headless")  # 브라우저 창을 띄우지 않고 실행하려면 추가
 
     # Selenium 드라이버 시작
@@ -137,6 +146,12 @@ def getGameDetail(request: GetGameDetailRequest):
         minute = time[1]
 
         game_status = game.find('strong', class_='flag').text
+        if game_status == "경기종료":
+            game_status = "경기 종료"
+        elif game_status == "경기전":
+            game_status = "경기 예정"
+        elif game_status == "경기중":
+            game_status = "경기 중"
         
         # 이닝별 스코어가 있는 테이블을 찾음
         table = game.find('table', class_='tScore')
@@ -172,9 +187,9 @@ def getGameDetail(request: GetGameDetailRequest):
                 gameData.season = "-"
 
             # TODO: 정규시즌은 12, 포스트시즌은 15이닝까지 존재.
-            innings = [int(td.text) for td in row.find_all('td')[:MaxNumberOfInnings] if td.text != "-"]# 이닝별 점수는 1~12열까지
+            innings = [int(td.text) if td.text != "-" else -1 for td in row.find_all('td')[:MaxNumberOfInnings]]# 이닝별 점수는 1~12열까지
             # R, H, E, B 값 추출
-            rheb = [int(td.text) for td in row.find_all('td')[-4:] if td.text != ""]  # 마지막 4열은 R, H, E, B 값
+            rheb = [int(td.text) if td.text != "" else -1 for td in row.find_all('td')[-4:]]  # 마지막 4열은 R, H, E, B 값
             # total_score = row.find('td', class_='point').text.strip()  # 팀의 전체 점수 추출
 
             if team_name == left_team:
@@ -183,7 +198,8 @@ def getGameDetail(request: GetGameDetailRequest):
             elif team_name == right_team:
                 gameData.homeScores = innings
                 gameData.homeRHEB = rheb
-
+        
+        print(gameData)
         all_game_scores.append(gameData)
 
     # 콘솔 출력
@@ -223,11 +239,16 @@ class GetGameSummariesRequest(BaseModel):
     
 # @app.post("/games")
 def getGameSummaries(request: GetGameSummariesRequest):
-    # # ChromeDriver 경로 설정
+    # ChromeDriver 경로 설정
+    # Local : chrome_driver_path = "/opt/homebrew/bin/chromedriver"
+    # Dev : chrome_driver_path = "/usr/bin/chromedriver"
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
     # Chrome 옵션 설정
     chrome_options = Options()
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--single-process")
     chrome_options.add_argument("--headless")  # 브라우저 창을 띄우지 않고 실행하려면 추가
 
     # Selenium 드라이버 시작
@@ -335,7 +356,6 @@ class GetGameSummariesInRegularSeasonResponse(BaseModel):
 class GetGameSummariesInRegularSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
-    season: str
     
 @app.post("/games/regular-season")
 def getGameSummariesInRegularSeason(request: GetGameSummariesInRegularSeasonRequest):
@@ -384,7 +404,7 @@ class GetGameSummariesInAllSeasonRequest(BaseModel):
     year: int = Field(ge=2001, le=2024)
     month: int = Field(ge=1, le=12)
     
-@app.post("/games/all-season")
+@app.post("/games/calendar")
 def getGamesInAllSeason(request: GetGameSummariesInAllSeasonRequest):
 
     year = request.year
@@ -423,11 +443,16 @@ class GetGameSummariesOnCalendarRequest(BaseModel):
     
 # @app.post("/games/calendar")
 def getGameSummariesOnCalendar(request: GetGameSummariesOnCalendarRequest):
-        # # ChromeDriver 경로 설정
+    # ChromeDriver 경로 설정
+    # Local : chrome_driver_path = "/opt/homebrew/bin/chromedriver"
+    # Dev : chrome_driver_path = "/usr/bin/chromedriver"
     chrome_driver_path = "/opt/homebrew/bin/chromedriver"
 
     # Chrome 옵션 설정
     chrome_options = Options()
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--single-process")
     chrome_options.add_argument("--headless")  # 브라우저 창을 띄우지 않고 실행하려면 추가
 
     # Selenium 드라이버 시작
