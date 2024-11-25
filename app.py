@@ -224,7 +224,7 @@ def get_video_details() -> list[dict]:
 # YouTube 자막을 추출하는 2번 함수
 def extract_transcript(video_id: str, lang: str = 'ko') -> dict:
 
-    chrome_driver_path = "/usr/bin/chromedriver"
+    chrome_driver_path = "/opt/homebrew/bin/chromedriver"
     # "/usr/bin/chromedriver"
     # "/opt/homebrew/bin/chromedriver"
     service = Service(executable_path=chrome_driver_path)
@@ -235,9 +235,9 @@ def extract_transcript(video_id: str, lang: str = 'ko') -> dict:
     chrome_options.add_argument("--single-process")
     chrome_options.add_argument("--headless=new")
     # EC2 우분투 환경에서 동작시키기 위해 사용
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
+    # chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
     # EC2에서 IP 차단을 우회하기 위해 사용
-    chrome_options.add_argument('--proxy-server=http://101.101.217.36:80')
+    # chrome_options.add_argument('--proxy-server=http://101.101.217.36:80')
 
     url = f"https://www.youtube.com/watch?v={video_id}"
     driver = webdriver.Chrome(service=service, options=chrome_options)
