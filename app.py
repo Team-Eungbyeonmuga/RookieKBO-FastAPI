@@ -528,14 +528,23 @@ NEWS_URL = "https://sporki.com/kbaseball/news?sort=2"
 
 # 뉴스 링크를 가져오는 함수 (최신 7개만 추출)
 def get_news_links() -> dict:
-    chrome_driver_path = "/opt/homebrew/bin/chromedriver"
+
+    chrome_driver_path = "/usr/bin/chromedriver"
+    # "/opt/homebrew/bin/chromedriver"
+    # "/usr/bin/chromedriver"
+
     service = Service(executable_path=chrome_driver_path)
-    options = Options()
-    options.add_argument("--headless")  # 브라우저 창 띄우지 않기
+
+
+    chrome_options = Options()
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--single-process")
+    chrome_options.add_argument("--headless")  # 브라우저 창을 띄우지 않고 실행하려면 추가
 
     news_url = "https://sporki.com/kbaseball/news?sort=2"
 
-    driver = webdriver.Chrome(service=service, options=options)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.get(news_url)
 
     # 로드될 때까지 대기 (최대 10초)
