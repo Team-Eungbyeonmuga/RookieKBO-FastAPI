@@ -527,26 +527,16 @@ NEWS_URL = "https://sporki.com/kbaseball/news?sort=2"
 
 
 # 뉴스 링크를 가져오는 함수 (최신 7개만 추출)
-def get_news_links(news_url: str) -> List[NewsLink]:
-    chrome_driver_path = "/usr/bin/chromedriver"
-
+def get_news_links() -> dict:
+    chrome_driver_path = "/opt/homebrew/bin/chromedriver"
     service = Service(executable_path=chrome_driver_path)
+    options = Options()
+    options.add_argument("--headless")  # 브라우저 창 띄우지 않기
 
-    chrome_driver_path = "/usr/bin/chromedriver"
-    # "/opt/homebrew/bin/chromedriver"
-    # "/usr/bin/chromedriver"
-    service = Service(executable_path=chrome_driver_path)
+    news_url = "https://sporki.com/kbaseball/news?sort=2"
 
-
-    chrome_options = Options()
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--single-process")
-    chrome_options.add_argument("--headless")  # 브라우저 창을 띄우지 않고 실행하려면 추가
-
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(service=service, options=options)
     driver.get(news_url)
-
 
     # 로드될 때까지 대기 (최대 10초)
     try:
@@ -599,9 +589,18 @@ def get_news_links(news_url: str) -> List[NewsLink]:
     return news_links
 
 
-@app.post("/news", response_model=List[NewsLink])
-async def fetch_news_links():
-    return get_news_links(NEWS_URL)
+@app.get("/news")
+async def fetch_news_links() -> dict:
+    try:
+        news_links = get_news_links()
+
+        if not news_links:
+            raise HTTPException(status_code=404, detail="뉴스가 없어요")
+
+        return {"news": news_links}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # # video_id에 해당하는 자막 반환 (2번 api)
